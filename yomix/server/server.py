@@ -139,6 +139,8 @@ def gen_modify_doc(filearg, subsampling, title):
                     hidden_legend_width,
                     select_field,
                     label_signature,
+                    label_name_input,
+                    delete_label_button,
                 ) = yomix.plotting.setup_legend(
                     points_bokeh_plot,
                     obs_string,
@@ -149,6 +151,81 @@ def gen_modify_doc(filearg, subsampling, title):
                     bt_slider_range,
                     unique_dict,
                 )
+
+                # Add Python callback to create label from selection (on Enter key)
+                scatter = points_bokeh_plot.select_one(dict(name="scatterplot"))
+                source = scatter.data_source
+                
+                # Track custom labels
+                custom_labels = []
+                
+                def create_new_label(attr, old, new):
+                    label_name = new.strip()
+                    if not label_name or len(source.selected.indices) == 0:
+                        label_name_input.value = ""
+                        return
+                    
+                    # Create new label array
+                    new_label = np.array(["not_annotated"] * xd.n_obs, dtype=object)
+                    for idx in source.selected.indices:
+                        new_label[idx] = label_name
+                    
+                    # Add to adata
+                    xd.obs[label_name] = new_label
+                    
+                    # Add to source data
+                    source.data[label_name] = new_label.tolist()
+                    
+                    # Update obs_string list and dropdown
+                    if label_name not in obs_string:
+                        obs_string.append(label_name)
+                        custom_labels.append(label_name)
+                        menu = obs_string + obs_string_many + obs_numerical
+                        select_color_by.options = menu
+                    
+                    # Clear input
+                    label_name_input.value = ""
+                
+                label_name_input.on_change('value', create_new_label)
+                
+                # Add delete label functionality
+                def delete_label():
+                    current_label = hidden_text_label_column.value
+                    if current_label and current_label in custom_labels:
+                        # Remove from adata
+                        if current_label in xd.obs.columns:
+                            xd.obs.drop(columns=[current_label], inplace=True)
+                        
+                        # Remove from source data
+                        if current_label in source.data:
+                            del source.data[current_label]
+                        
+                        # Remove from lists
+                        if current_label in obs_string:
+                            obs_string.remove(current_label)
+                        if current_label in custom_labels:
+                            custom_labels.remove(current_label)
+                        
+                        # Update dropdown
+                        menu = obs_string + obs_string_many + obs_numerical
+                        select_color_by.options = menu
+                        select_color_by.value = ""
+                        hidden_text_label_column.value = ""
+                        
+                        # Hide delete button
+                        delete_label_button.visible = False
+                
+                delete_label_button.on_click(delete_label)
+                
+                # Show/hide delete button based on selected field
+                def update_delete_button(attr, old, new):
+                    if new in custom_labels:
+                        delete_label_button.visible = True
+                    else:
+                        delete_label_button.visible = False
+                
+                select_color_by.on_change('value', update_delete_button)
+
 
                 offset_text_feature_color, offset_label = (
                     yomix.plotting.color_by_feature_value(
@@ -293,6 +370,7 @@ def gen_modify_doc(filearg, subsampling, title):
                                     bokeh.layouts.row(
                                         offset_text_feature_color, bt_open_link
                                     ),
+                                    label_name_input,
                                 ),
                             ),
                             bokeh.layouts.column(
@@ -338,6 +416,8 @@ def gen_modify_doc(filearg, subsampling, title):
                                     bokeh.layouts.row(
                                         offset_text_feature_color, bt_open_link
                                     ),
+                                    label_name_input,
+                                    delete_label_button,
                                 ),
                             ),
                             bokeh.layouts.column(

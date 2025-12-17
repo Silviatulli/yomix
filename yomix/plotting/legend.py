@@ -364,6 +364,40 @@ def setup_legend(
     )
 
     select_field = bokeh.models.Select(title="", value="", options=[""])
+    
+    # Input to create label from selection (press Enter to create)
+    label_name_input = bokeh.models.TextInput(
+        title="Create label (press Enter):",
+        value="",
+        width=235,
+        placeholder="Enter label name"
+    )
+    label_name_input.visible = False
+    
+    # Button to delete selected label
+    delete_label_button = bokeh.models.Button(
+        label="Delete label",
+        width=235,
+        button_type="danger"
+    )
+    delete_label_button.visible = False
+    
+    # Update input visibility when selection changes
+    source.selected.js_on_change(
+        "indices",
+        bokeh.models.CustomJS(
+            args=dict(source=source, label_input=label_name_input),
+            code="""
+        const indices = source.selected.indices;
+        if (indices.length > 0) {
+            label_input.visible = true;
+        } else {
+            label_input.visible = false;
+        }
+    """,
+        ),
+    )
+    
     select_field.js_on_change(
         "value",
         bokeh.models.CustomJS(
@@ -486,4 +520,6 @@ def setup_legend(
         hidden_legend_width,
         select_field,
         label_signature,
+        label_name_input,
+        delete_label_button,
     )

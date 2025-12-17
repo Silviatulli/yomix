@@ -85,3 +85,7 @@ def main():
 
         io_loop.add_callback(server.show, "/")
         io_loop.start()
+
+
+if __name__ == "__main__":
+    main()
